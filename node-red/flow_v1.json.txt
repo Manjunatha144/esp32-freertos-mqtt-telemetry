@@ -1,0 +1,264 @@
+[
+    {
+        "id": "3a1385503e854b8c",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "28e59a97f1010a74",
+        "type": "mqtt in",
+        "z": "3a1385503e854b8c",
+        "name": "",
+        "topic": "edgepulse/manjunatha144/device_001/telemetry",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "b5d82571e70ad5f4",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 180,
+        "y": 300,
+        "wires": [
+            [
+                "fced29e842a5f32b"
+            ]
+        ]
+    },
+    {
+        "id": "fced29e842a5f32b",
+        "type": "json",
+        "z": "3a1385503e854b8c",
+        "name": "",
+        "property": "payload",
+        "action": "obj",
+        "pretty": false,
+        "x": 210,
+        "y": 180,
+        "wires": [
+            [
+                "76bfcbac34f4c877"
+            ]
+        ]
+    },
+    {
+        "id": "623fc5363351b883",
+        "type": "debug",
+        "z": "3a1385503e854b8c",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 660,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "f8936bac9acc619e",
+        "type": "ui_text",
+        "z": "3a1385503e854b8c",
+        "group": "bdef1690bf2db0bb",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "SEQ",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 610,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "76bfcbac34f4c877",
+        "type": "function",
+        "z": "3a1385503e854b8c",
+        "name": "seq",
+        "func": "msg.payload = msg.payload.seq;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 120,
+        "wires": [
+            [
+                "f8936bac9acc619e"
+            ]
+        ]
+    },
+    {
+        "id": "8003b154c294257b",
+        "type": "function",
+        "z": "3a1385503e854b8c",
+        "name": "uptime",
+        "func": "msg.payload = msg.payload.uptime_ms;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 470,
+        "y": 20,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "9fa725dba278018b",
+        "type": "ui_text",
+        "z": "3a1385503e854b8c",
+        "group": "bdef1690bf2db0bb",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Uptime (ms)",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 690,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "6c72a575d7c44a11",
+        "type": "ui_chart",
+        "z": "3a1385503e854b8c",
+        "name": "",
+        "group": "bdef1690bf2db0bb",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "label": "temp",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 490,
+        "y": 180,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "0c50a731c13f460a",
+        "type": "function",
+        "z": "3a1385503e854b8c",
+        "name": "temp",
+        "func": "msg.payload = msg.payload.temp;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 200,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "b5d82571e70ad5f4",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "broker.hivemq.com",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "bdef1690bf2db0bb",
+        "type": "ui_group",
+        "name": "Default",
+        "tab": "1b592f1eda693dd1",
+        "order": 1,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "1b592f1eda693dd1",
+        "type": "ui_tab",
+        "name": "Telemetry / Device 001",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "ce91eb7a0d874f23",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]

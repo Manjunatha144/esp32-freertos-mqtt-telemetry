@@ -1,23 +1,35 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
 #include "esp_system.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_netif.h"
+#include "esp_timer.h"
+
 #include "mqtt_client.h"
 
 #define WIFI_SSID      "MANJU_WIFI"
 #define WIFI_PASS      "1234567890"
 
+#define CMD_TOPIC       "edgepulse/manjunatha144/device_001/cmd"
+#define TELEMETRY_TOPIC "edgepulse/manjunatha144/device_001/telemetry"
+
+#define MIN_INTERVAL_MS 500
+#define MAX_INTERVAL_MS 60000
+
 static const char *TAG = "MQTT_APP";
 
-/* Global MQTT client handle */
+/* Shared state */
+static volatile bool mqtt_connected = false;
+static volatile uint32_t interval_ms = 5000;
 static esp_mqtt_client_handle_t global_client = NULL;
-static int sequence = 0;
 
 /* ---------- MQTT EVENT HANDLER ---------- */
 static void mqtt_event_handler(void *handler_args,
@@ -27,34 +39,45 @@ static void mqtt_event_handler(void *handler_args,
 {
     esp_mqtt_event_handle_t event = event_data;
     esp_mqtt_client_handle_t client = event->client;
-    int msg_id;
 
     switch ((esp_mqtt_event_id_t)event_id) {
 
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-
-        msg_id = esp_mqtt_client_subscribe(client,
-            "edgepulse/manjunatha144/device_001/cmd", 0);
-
-        ESP_LOGI(TAG, "Subscribed to CMD topic, msg_id=%d", msg_id);
-
+        mqtt_connected = true;
         global_client = client;
-        break;
-
-    case MQTT_EVENT_DATA:
-        ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-        printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-        printf("DATA=%.*s\r\n", event->data_len, event->data);
+        esp_mqtt_client_subscribe(client, CMD_TOPIC, 0);
         break;
 
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+        mqtt_connected = false;
+        global_client = NULL;
         break;
 
-    case MQTT_EVENT_ERROR:
-        ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
+    case MQTT_EVENT_DATA: {
+        char buffer[128];
+        int len = event->data_len < sizeof(buffer) - 1 ? event->data_len : sizeof(buffer) - 1;
+        memcpy(buffer, event->data, len);
+        buffer[len] = '\0';
+
+        ESP_LOGI(TAG, "CMD received: %s", buffer);
+
+        char *pos = strstr(buffer, "interval_ms");
+        if (pos) {
+            char *colon = strchr(pos, ':');
+            if (colon) {
+                uint32_t new_interval = atoi(colon + 1);
+                if (new_interval >= MIN_INTERVAL_MS && new_interval <= MAX_INTERVAL_MS) {
+                    interval_ms = new_interval;
+                    ESP_LOGI(TAG, "interval updated to %lu ms", interval_ms);
+                } else {
+                    ESP_LOGW(TAG, "Invalid interval value");
+                }
+            }
+        }
         break;
+    }
 
     default:
         break;
@@ -84,12 +107,39 @@ static void wifi_init(void)
     ESP_ERROR_CHECK(esp_wifi_connect());
 }
 
+/* ---------- TELEMETRY TASK ---------- */
+static void telemetry_task(void *arg)
+{
+    uint32_t seq = 0;
+
+    while (1) {
+        if (mqtt_connected && global_client != NULL) {
+            seq++;
+
+            uint32_t uptime_ms = esp_timer_get_time() / 1000;
+
+            char payload[128];
+            snprintf(payload, sizeof(payload),
+                     "{\"device_id\":\"device_001\",\"seq\":%lu,\"uptime_ms\":%lu,\"temp\":27.5}",
+                     seq, uptime_ms);
+
+            esp_mqtt_client_publish(global_client,
+                                    TELEMETRY_TOPIC,
+                                    payload,
+                                    0, 0, 0);
+
+            ESP_LOGI(TAG, "Telemetry sent: %s", payload);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(interval_ms));
+    }
+}
+
 /* ---------- MAIN ---------- */
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Starting MQTT example");
+    ESP_LOGI(TAG, "Starting MQTT Telemetry (FreeRTOS task version)");
 
-    /* Initialize NVS */
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -97,48 +147,33 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
-    /* Start WiFi */
     wifi_init();
 
-    /* Wait for WiFi connection */
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    vTaskDelay(pdMS_TO_TICKS(5000));  // allow WiFi connect
 
-    /* MQTT Configuration */
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = "mqtt://broker.hivemq.com",
     };
 
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
 
-    esp_mqtt_client_register_event(client,
-                                   ESP_EVENT_ANY_ID,
-                                   mqtt_event_handler,
-                                   NULL);
+    ESP_ERROR_CHECK(
+        esp_mqtt_client_register_event(client,
+                                       ESP_EVENT_ANY_ID,
+                                       mqtt_event_handler,
+                                       NULL)
+    );
 
-    esp_mqtt_client_start(client);
+    ESP_ERROR_CHECK(esp_mqtt_client_start(client));
 
-    /* Publish every 5 seconds */
+    xTaskCreate(telemetry_task,
+                "telemetry_task",
+                4096,
+                NULL,
+                5,
+                NULL);
+
     while (1) {
-
-        if (global_client != NULL) {
-
-            char payload[128];
-
-            sequence++;
-
-            sprintf(payload,
-                "{\"device_id\":\"device_001\",\"seq\":%d,\"uptime_ms\":%ld,\"temp\":27.5}",
-                sequence,
-                esp_log_timestamp());
-
-            esp_mqtt_client_publish(global_client,
-                "edgepulse/manjunatha144/device_001/telemetry",
-                payload,
-                0, 0, 0);
-
-            ESP_LOGI(TAG, "Telemetry sent: %s", payload);
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(10000));
     }
 }

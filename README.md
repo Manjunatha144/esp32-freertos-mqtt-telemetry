@@ -128,3 +128,42 @@ EventGroups were used for synchronization between WiFi connection state and MQTT
 ### Why NVS?
 
 NVS allows runtime configuration persistence across reboot cycles without recompilation.
+## Debugging Challenges Solved
+
+### 1. NVS Initialization Reboot Loop
+
+Issue:
+WiFi initialization started before NVS initialization causing reboot loops.
+
+Fix:
+Moved NVS initialization before WiFi startup sequence.
+
+---
+
+### 2. DNS getaddrinfo() Failure
+
+Issue:
+MQTT client started before valid IP assignment.
+
+Fix:
+Delayed MQTT initialization until WIFI_CONNECTED_BIT was set.
+
+---
+
+### 3. Queue Assertion Failure
+
+Issue:
+MQTT publish task started before queue creation.
+
+Fix:
+Corrected startup order between telemetry and MQTT initialization.
+
+---
+
+### 4. MQTT Topic Collision
+
+Issue:
+Default public topic caused payload conflicts.
+
+Fix:
+Implemented unique namespace-based MQTT topics.

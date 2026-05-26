@@ -256,11 +256,11 @@ idf.py monitor
 ```
 ## Serial Monitor Output
 
-![Serial Monitor](screenshots/serial_monitor.png)
+![Serial Monitor](screenshots/esp32_serial_monitor_output.png)
 
 ## Firmware Architecture Diagram
 
-![Serial Monitor](screenshots/esp32_serial_monitor_output.png)
+![Architecture Diagram](diagrams/firmware_architecture.jpg)
 
 ## External Dashboard Integration
 
